@@ -34,7 +34,6 @@ def get_arguments():
     parser.add_argument("-p", "--model_path", default=None, help="Path to Clair3 model (optional)")
     parser.add_argument("--preset", choices=["ont-legacy", "ont-q20", "pb-clr", "pb-hifi", "asm"], default="ont-q20", help="Alignment preset for minimap2 (default: ont-q20). Choices: ont-legacy | ont-q20 | pb-clr | pb-hifi | asm")
     parser.add_argument("-v", "--version", action="version", version=f"dviONT v{__version__}", help="Show version and exit")
-
     args = parser.parse_args()
     return args 
 

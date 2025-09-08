@@ -34,7 +34,7 @@ dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipe
 git clone https://github.com/wshropshire/dviont
 cd dviont
 # Create a conda environment
-conda create -n dviont_env python=3.9
+conda create -n dviont_env python=3.10
 conda activate dviont_env
 pip3 install build
 # Build a sparse dviont package
@@ -59,14 +59,15 @@ By default if you execute the `download_clair3_models` script without arguments 
 The pipeline can be executed using the following command:
 
 ```bash
-./dviont/bin/dviont \
+dviont \
     -o <output_directory> \
     -r <reference_genome> \
     -i <reads_file> \
     -t <threads> \
     -m <clair3_model_name> \
     -p <clair3_model_path> \
-    -s <sample_name>
+    -s <sample_name> \
+    --preset <alignment_preset>
 ```
 
 ### Required Arguments
@@ -81,6 +82,12 @@ The pipeline can be executed using the following command:
 - `-m`, `--model_name`: Clair3 model name (default: `r1041_e82_400bps_sup_v430_bacteria_finetuned`).
 - `-p`, `--model_path`: Path to the Clair3 model (optional).
 - `-s`, `--sample`: Prefix for output (default: `SAMPLE`).
+- `--preset`: Minimap2 alignment preset (default: ont-q20).
+    - `ont-legacy`: map-ont (ONT R9.x Guppy HAC)
+    - `ont-q20`: lr:hq (ONT R10 Q20+ / Dorado SUP or duplex)
+    - `pb-clr`: map-pb (PacBio CLR)
+    - `pb-hifi`: map-hifi (PacBio HiFi/CCS)
+    - `asm`: asm5 (assembly-to-assembly alignment)
 - `-v`, `--version`: Display the version of the dviONT pipeline.
 
 ---
@@ -90,13 +97,14 @@ The pipeline can be executed using the following command:
 Note that I have included example fasta/GenBank reference files as well as ONT Q20+ reads in the `data` directory
 
 ```bash
-python3 dviONT.py \
+dviont \
     -o ./data/dviont_results \
     -r ./data/test.gb \
     -i ./data/reads.fastq.gz \
     -t 4 \
     -m r1041_e82_400bps_sup_v500 \
-    -s SAMPLE1
+    -s SAMPLE1 \
+    --preset ont-q20
 ```
 
 ---
