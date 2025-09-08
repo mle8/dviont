@@ -10,6 +10,7 @@ from .directory_management import PipelineManager
 from .ref_format import determine_ref_format
 from .extract_fasta_and_gbk import extract_fasta_and_gbk
 from .minimap2 import run_minimap2_alignment
+from .winnowmap import run_winnowmap_alignment
 from .clair3_module import run_clair3
 from .snpEff_module import run_snpEff
 from .vcf_processor import VCFProcessor
@@ -27,6 +28,7 @@ def get_arguments():
     parser.add_argument("-r", "--ref", required=True, help="Path to reference genome file (FASTA or GBK)")
     parser.add_argument("-i", "--reads", required=True, help="Path to reads file (FASTQ)")
     parser.add_argument("-t", "--threads", type=int, default=2, help="Number of threads to use (default: 2)")
+    parser.add_argument("--aligner", choices=["minimap2", "winnowmap"], default="minimap2", help="Aligner to use (default: minimap2).")
     parser.add_argument("-m", "--model_name", default="r1041_e82_400bps_sup_v430_bacteria_finetuned", help="Model name for Clair3 (default: r1041_e82_400bps_sup_v430_bacteria_finetuned)")
     parser.add_argument("-s", "--sample", default="SAMPLE", help="Sample name")
     parser.add_argument("-p", "--model_path", default=None, help="Path to Clair3 model (optional)")
@@ -64,8 +66,11 @@ def main():
         fasta_out = extract_fasta_and_gbk(ref, ref_dir, ref_fmt, output_dir)
         logging.info(f"FASTA file extracted: {fasta_out}")
 
-        # Step 4: Run Minimap2 to align reads
-        bam_output = run_minimap2_alignment(fasta_out, reads, threads, output_dir, sample, preset=args.preset)
+        # Step 4: Run alignment
+        if args.aligner == "minimap2":
+            bam_output = run_minimap2_alignment(fasta_out, reads, threads, output_dir, sample, preset=args.preset)
+        else:
+            bam_output = run_winnowmap_alignment(fasta_out, reads, threads, output_dir, sample, preset=args.preset)
 
         # Step 5: Run Clair3 to generate a VCF file
         vcf_out, consensus_path = run_clair3(output_dir, fasta_out, bam_output, threads, model_name, sample, model_path)
