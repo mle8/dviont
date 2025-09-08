@@ -6,7 +6,7 @@
 
 dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipeline designed specifically for Q20+ Oxford Nanopore Technologies sequencing data. This pipeline was heavily inspired by (1) Torsten Seemann's [short-read variant calling tool Snippy](https://github.com/tseemann/snippy) and (2) The best practices of ONT long-read variant calling as described in [this Michael Hall et al. eLife 2024 paper](https://doi.org/10.7554/eLife.98300). The pipeline facilitates the following:
 
-1. Alignment of ONT sequencing reads that have been basecalled using dorado (tested with v.0.9.1) and the super accurate model (r1041_e82_400bps_sup_v500) to provided reference genome using Minimap2.
+1. Alignment of ONT sequencing reads that have been basecalled using dorado (tested with v.0.9.1) and the super accurate model (r1041_e82_400bps_sup_v500) to provided reference genome using Minimap2 (or Winnowmap).
 2. Variant calling using Clair3 parameters following best practices as described in aforementioned eLife journal article.
 3. Optional annotation of variants with SnpEff (if a GenBank reference is provided).
 4. Post-processing of variant call files (VCF), which is intended to be used for further downstream analyses.
@@ -67,7 +67,8 @@ dviont \
     -m <clair3_model_name> \
     -p <clair3_model_path> \
     -s <sample_name> \
-    --preset <alignment_preset>
+    --preset <alignment_preset> \
+    --aligner <aligner>
 ```
 
 ### Required Arguments
@@ -88,6 +89,9 @@ dviont \
     - `pb-clr`: map-pb (PacBio CLR)
     - `pb-hifi`: map-hifi (PacBio HiFi/CCS)
     - `asm`: asm5 (assembly-to-assembly alignment)
+- `--aligner`: Alignment tool (default: minimap2)
+    - `minimap2`: Default option
+    - `winnowmap`: Uses weighted minimizer sampling algorithm
 - `-v`, `--version`: Display the version of the dviONT pipeline.
 
 ---
@@ -104,7 +108,8 @@ dviont \
     -t 4 \
     -m r1041_e82_400bps_sup_v500 \
     -s SAMPLE1 \
-    --preset ont-q20
+    --preset ont-q20 \
+    --aligner minimap2
 ```
 
 ---
