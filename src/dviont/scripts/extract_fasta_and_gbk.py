@@ -5,6 +5,7 @@ from Bio import SeqIO
 import subprocess
 import gzip
 
+
 def _sanitize_fasta_in_place(fasta_path: str) -> None:
     """
     Rewrite FASTA to remove blank/whitespace-only lines and CRLF artifacts.
@@ -12,7 +13,7 @@ def _sanitize_fasta_in_place(fasta_path: str) -> None:
     and uppercases sequence.
 
     This fixes cases where empty rows between records can break tools like
-    bcftools consensus.
+    bcftools consensus (variants not applied).
     """
     tmp_path = fasta_path + ".tmp"
 
@@ -79,7 +80,7 @@ def extract_fasta_and_gbk(reference, ref_dir, ref_fmt, output_dir):
             logging.error(f"Unknown ref_fmt: {ref_fmt}. Expected 'genbank' or 'fasta'.")
             return None
 
-        # sanitize ref.fa in place (removes blank lines between records if exists)
+        # sanitize ref.fa in place (removes blank lines between records, etc.)
         try:
             _sanitize_fasta_in_place(fasta_out)
         except Exception as e:
@@ -115,32 +116,3 @@ def extract_fasta_and_gbk(reference, ref_dir, ref_fmt, output_dir):
         logging.error(f"❌ Error in extract_fasta_and_gbk: {e}")
         return None
 
-            logging.info(f"Converted GenBank to FASTA: {fasta_out}")
-
-        elif ref_fmt == "fasta":
-            # Copy FASTA file
-            fasta_out = os.path.join(ref_dir, "ref.fa")
-            shutil.copy(reference, fasta_out)
-            logging.info(f"Copied FASTA file to {fasta_out}")
-
-        # Ensure `fasta_out` is symlinked to `genomes/`
-        genomes_fasta_out = os.path.join(ref_dir, "genomes", "ref.fa")
-        if not os.path.exists(genomes_fasta_out):
-            # Create a relative symlink pointing to the ref.fa in the parent directory
-            os.symlink(os.path.relpath(fasta_out, start=os.path.join(ref_dir, "genomes")), genomes_fasta_out)
-            logging.info(f"Created relative symlink: {genomes_fasta_out} -> {fasta_out}")
-        else:
-            logging.info(f"Symlink already exists: {genomes_fasta_out}")
-
-        # Run samtools faidx
-        try:
-            result = subprocess.run(["samtools", "faidx", fasta_out], capture_output=True, text=True, check=True)
-        except subprocess.CalledProcessError as e:
-            logging.error(f"❌ Error running samtools faidx: {e.stderr}")
-            return None
-            
-        return fasta_out
-
-    except Exception as e:
-        logging.error(f"❌ Error in extract_fasta_and_gbk: {e}")
-        return None
