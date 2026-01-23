@@ -5,43 +5,6 @@ from Bio import SeqIO
 import subprocess
 import gzip
 
-def extract_fasta_and_gbk(reference, ref_dir, ref_fmt, output_dir):
-    """Extract FASTA and GenBank files, ensuring correct formatting."""
-    try:
-        if not os.path.exists(reference):
-            logging.error(f"Reference file not found: {reference}")
-        
-        os.makedirs(os.path.join(ref_dir, "genomes"), exist_ok=True)
-        os.makedirs(os.path.join(ref_dir, "ref"), exist_ok=True)
-
-        if ref_fmt == "genbank":
-            # Define paths
-            genes_gbk_path = os.path.join(ref_dir, "ref", "genes.gbk")
-            genes_gbk_gz_path = genes_gbk_path + ".gz"
-
-            # Copy and gzip the GenBank file
-            shutil.copy(reference, genes_gbk_path)
-            with open(genes_gbk_path, 'rb') as f_in, gzip.open(genes_gbk_gz_path, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-            
-            # Remove uncompressed file after gzipping
-            os.remove(genes_gbk_path)
-            logging.info(f"Copied and gzipped GenBank file: {genes_gbk_gz_path}")
-
-            # Convert GenBank to FASTA
-            fasta_out = os.path.join(ref_dir, "ref.fa")
-            with open(fasta_out, "w") as fasta_file:
-                records = SeqIO.parse(reference, "genbank")
-                for record in records:
-                    SeqIO.write(record, fasta_file, "fasta")
-            import os
-import shutil
-import logging
-from Bio import SeqIO
-import subprocess
-import gzip
-
-
 def _sanitize_fasta_in_place(fasta_path: str) -> None:
     """
     Rewrite FASTA to remove blank/whitespace-only lines and CRLF artifacts.
