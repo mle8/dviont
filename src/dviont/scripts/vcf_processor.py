@@ -1,104 +1,47 @@
 import csv
 import os
-import gzip
+import subprocess
+from collections import defaultdict, deque
+from dataclasses import dataclass
+from typing import List, Tuple
+
+import pysam
+from Bio import SeqIO
+
+
+@dataclass
+class CleanConfig:
+    min_af_review: float = 0.8
+    min_dp_review: int = 10
+    min_qual_review: float = 15.0
+    dense_window_bp: int = 100
+    dense_min_variants: int = 5
+
 
 class VCFProcessor:
-    def __init__(self, vcf_file, ref_fmt, output_dir, sample, reference_fasta=None, genbank_file=None, clean_config=None):
+    def __init__(self, vcf_file, output_dir, sample, reference_fasta, genbank_file=None, clean_config=None):
         self.vcf_file = vcf_file
-        self.ref_fmt = ref_fmt.lower()
         self.output_dir = output_dir
         self.sample = sample
         self.reference_fasta = reference_fasta
         self.genbank_file = genbank_file
         self.clean_config = clean_config or CleanConfig()
-        self.genbank_dict = self.load_genbank(self.genbank_file) if self.genbank_file else {}
+        self.genbank_dict = self._load_genbank(genbank_file) if genbank_file else {}
 
-    def load_genbank(self, genbank_file):
-        genbank_dict = {}
+    def _run(self, cmd):
+        subprocess.run(cmd, check=True)
+
+    def _load_genbank(self, genbank_file):
+        out = {}
         for record in SeqIO.parse(genbank_file, "genbank"):
             for feature in record.features:
-                if feature.type == "CDS" and 'locus_tag' in feature.qualifiers:
-                    locus_tag = feature.qualifiers['locus_tag'][0]
-                    genbank_dict[locus_tag] = {
-                        'product_id': feature.qualifiers.get('protein_id', [''])[0],
-                        'product': feature.qualifiers.get('product', [''])[0],
+                if feature.type == "CDS" and "locus_tag" in feature.qualifiers:
+                    locus_tag = feature.qualifiers["locus_tag"][0]
+                    out[locus_tag] = {
+                        "product_id": feature.qualifiers.get("protein_id", [""])[0],
+                        "product": feature.qualifiers.get("product", [""])[0],
                     }
-        return genbank_dict
-
-    def parse_vcf(self):
-        """Parse the VCF file and generate the summary report."""
-        header = ["CHROM", "POS", "TYPE", "REF", "ALT", "EVIDENCE"]
-        if self.ref_fmt == "genbank":
-            header += ["ANNOT", "IMPACT", "GENE", "LOCUS_TAG", "HGVS.c", "HGVS.p", "PRODUCT_ID", "PRODUCT"]
-
-        rows = []
-
-        open_func = gzip.open if self.vcf_file.endswith(".gz") else open
-        with open_func(self.vcf_file, 'rt') as vcf:
-            for line in vcf:
-                if line.startswith("#"):
-                    continue
-
-                fields = line.strip().split("\t")
-                # Minimum 8 columns for a valid VCF
-                if len(fields) < 8:
-                    continue
-
-                chrom, pos, _, ref, alt, _, _, info, *rest = fields
-
-                # Determine TYPE
-                if len(ref) == 1 and len(alt) == 1:
-                    variant_type = "SNP"
-                elif len(ref) == len(alt):
-                    variant_type = "MNP"
-                else:
-                    variant_type = "INDEL"
-
-                # Extract EVIDENCE
-                evidence = "NA"
-                if rest:
-                    sample_fields = rest[-1].split(":")  # FORMAT: GT:GQ:DP:AD:AF
-                    if len(sample_fields) >= 4:
-                        dp = sample_fields[2]
-                        ad_values = sample_fields[3].split(",")  # e.g. "15,19"
-                        if len(ad_values) >= 2:
-                            ref_count, alt_count = ad_values[0], ad_values[1]
-                            evidence = f"ALT:{dp}/{alt_count};REF:{dp}/{ref_count}"
-
-                row = [chrom, pos, variant_type, ref, alt, evidence]
-
-                # Only add GenBank annotations if requested
-                if self.ref_fmt == "genbank" and "ANN=" in info:
-                    info_fields = info.split("|")
-                    annot = info_fields[1] if len(info_fields) > 1 else ""
-                    impact = info_fields[2] if len(info_fields) > 2 else ""
-                    gene = info_fields[3] if len(info_fields) > 3 else ""
-                    locus_tag = info_fields[4] if len(info_fields) > 4 else ""
-
-                    if annot == "intergenic_region":
-                        gene = ""
-                    elif gene == locus_tag:
-                        gene = "hyp"
-
-                    hgvs_c = info_fields[9] if len(info_fields) > 9 else ""
-                    hgvs_p = info_fields[10] if len(info_fields) > 10 else ""
-
-                    product_id, product = "", ""
-                    if locus_tag in self.genbank_dict:
-                        product_id = self.genbank_dict[locus_tag]["product_id"]
-                        product = self.genbank_dict[locus_tag]["product"]
-
-                    row += [annot, impact, gene, locus_tag, hgvs_c, hgvs_p, product_id, product]
-
-                rows.append(row)
-
-        # Write to TSV file
-        self.write_tsv(header, rows)
-
-    def write_tsv(self, header, rows):
-        """Write the summary data to a TSV file."""
-        os.makedirs(self.output_dir, exist_ok=True)
-        output_path = os.path.join(self.output_dir, f"{self.sample}_dviont_report.tsv")
+        return out
 
     def normalize_sort_index(self):
         os.makedirs(self.output_dir, exist_ok=True)
@@ -114,36 +57,55 @@ class VCFProcessor:
         for i, rec in enumerate(records):
             by_chrom[rec.chrom].append((rec.pos, i))
         dense_idxs = set()
-        w = self.clean_config.dense_window_bp
-        k = self.clean_config.dense_min_variants
-        for _, arr in by_chrom.items():
+        for arr in by_chrom.values():
             dq = deque()
             for pos, idx in arr:
                 dq.append((pos, idx))
-                while dq and pos - dq[0][0] > w:
+                while dq and pos - dq[0][0] > self.clean_config.dense_window_bp:
                     dq.popleft()
-                if len(dq) >= k:
-                    dense_idxs.update(i for _, i in dq)
+                if len(dq) >= self.clean_config.dense_min_variants:
+                    dense_idxs.update(j for _, j in dq)
         return dense_idxs
 
-    def annotate_clean(self, input_vcf, output_vcf):
+    def _ann_extract(self, rec):
+        ann = rec.info.get("ANN")
+        if not ann:
+            return [""] * 8
+        first = ann[0].split("|") if isinstance(ann, (list, tuple)) else str(ann).split("|")
+        annot = first[1] if len(first) > 1 else ""
+        impact = first[2] if len(first) > 2 else ""
+        gene = first[3] if len(first) > 3 else ""
+        locus_tag = first[4] if len(first) > 4 else ""
+        hgvs_c = first[9] if len(first) > 9 else ""
+        hgvs_p = first[10] if len(first) > 10 else ""
+        product_id = self.genbank_dict.get(locus_tag, {}).get("product_id", "")
+        product = self.genbank_dict.get(locus_tag, {}).get("product", "")
+        return [annot, impact, gene, locus_tag, hgvs_c, hgvs_p, product_id, product]
+
+    def annotate_clean(self, input_vcf, output_vcf) -> List[List]:
         invcf = pysam.VariantFile(input_vcf)
         header = invcf.header.copy()
-        header.info.add("DVIONT_STATUS", 1, "String", "DviONT status: PASS/REVIEW/EXCLUDE")
-        header.info.add("DVIONT_FLAGS", ".", "String", "DviONT QC flags")
+        if "DVIONT_STATUS" not in header.info:
+            header.info.add("DVIONT_STATUS", 1, "String", "DviONT status: PASS/REVIEW/EXCLUDE")
+        if "DVIONT_FLAGS" not in header.info:
+            header.info.add("DVIONT_FLAGS", 1, "String", "DviONT QC flags")
+
         records = [r for r in invcf]
         dense_idxs = self._is_dense(records)
-
         outvcf = pysam.VariantFile(output_vcf, "wz", header=header)
-        report_rows = []
+        rows = []
+
         for i, rec in enumerate(records):
             flags = []
             filt = list(rec.filter.keys())
             qual = rec.qual if rec.qual is not None else 0.0
-            gt = rec.samples[self.sample].get("GT") if self.sample in rec.samples else None
-            dp = rec.samples[self.sample].get("DP") if self.sample in rec.samples else None
-            ad = rec.samples[self.sample].get("AD") if self.sample in rec.samples else None
-            af = rec.samples[self.sample].get("AF") if self.sample in rec.samples else rec.info.get("AF")
+            sample_data = rec.samples[self.sample] if self.sample in rec.samples else next(iter(rec.samples.values()))
+            gt = sample_data.get("GT")
+            dp = sample_data.get("DP")
+            ad = sample_data.get("AD")
+            af = sample_data.get("AF")
+            if af is None:
+                af = rec.info.get("AF")
             af_val = af[0] if isinstance(af, (tuple, list)) and af else (float(af) if af is not None else None)
 
             if af_val is not None and af_val < self.clean_config.min_af_review:
@@ -163,26 +125,36 @@ class VCFProcessor:
             if i in dense_idxs:
                 flags.append("DENSE_REGION")
 
-            status = "PASS"
+            status = "PASS" if not flags else "REVIEW"
             if "SYMBOLIC_ALT" in flags:
                 status = "EXCLUDE"
-            elif flags:
-                status = "REVIEW"
 
             rec.info["DVIONT_STATUS"] = status
             rec.info["DVIONT_FLAGS"] = ",".join(sorted(set(flags))) if flags else ""
             outvcf.write(rec)
 
-            variant_type = "SNP" if len(rec.ref) == 1 and all(len(a) == 1 for a in (rec.alts or [])) else "INDEL"
-            report_rows.append([self.sample, rec.chrom, rec.pos, variant_type, rec.ref, ",".join(rec.alts or []), qual, ";".join(filt) if filt else "PASS", str(gt), dp, str(ad), af_val, status, rec.info.get("DVIONT_FLAGS", "")])
+            vartype = "SNP" if len(rec.ref) == 1 and all(len(a) == 1 for a in (rec.alts or [])) else "INDEL"
+            rows.append([
+                self.sample, rec.chrom, rec.pos, vartype, rec.ref, ",".join(rec.alts or []), qual,
+                ";".join(filt) if filt else "PASS", str(gt), dp, str(ad), af_val, status,
+                rec.info.get("DVIONT_FLAGS", ""), *self._ann_extract(rec)
+            ])
+
         outvcf.close()
         pysam.tabix_index(output_vcf, preset="vcf", force=True)
-        return report_rows
+        return rows
 
     def write_report(self, rows):
-        output_path = os.path.join(self.output_dir, f"{self.sample}.dviont.report.tsv")
-        header = ["SAMPLE", "CHROM", "POS", "TYPE", "REF", "ALT", "QUAL", "FILTER", "GT", "DP", "AD", "AF", "DVIONT_STATUS", "DVIONT_FLAGS"]
-        with open(output_path, "w", newline="") as tsvfile:
-            writer = csv.writer(tsvfile, delimiter='\t')
-            writer.writerow(header)
-            writer.writerows(rows)
+        output = os.path.join(self.output_dir, f"{self.sample}.dviont.report.tsv")
+        header = ["SAMPLE", "CHROM", "POS", "TYPE", "REF", "ALT", "QUAL", "FILTER", "GT", "DP", "AD", "AF", "DVIONT_STATUS", "DVIONT_FLAGS", "ANNOT", "IMPACT", "GENE", "LOCUS_TAG", "HGVS.c", "HGVS.p", "PRODUCT_ID", "PRODUCT"]
+        with open(output, "w", newline="") as f:
+            w = csv.writer(f, delimiter="\t")
+            w.writerow(header)
+            w.writerows(rows)
+        return output
+
+    def process_clean(self, output_vcf):
+        sorted_vcf = self.normalize_sort_index()
+        rows = self.annotate_clean(sorted_vcf, output_vcf)
+        report = self.write_report(rows)
+        return output_vcf, report
