@@ -39,6 +39,43 @@ def run_cmd(cmd):
     subprocess.run(cmd, check=True)
 
 
+def write_cohort_helper_scripts(out_dir, alignment_fasta):
+    run_gubbins = out_dir / "run_gubbins.sh"
+    run_gubbins.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n\n"
+        "# Edit these placeholders before running\n"
+        "GUBBINS_ENV=\"/path/to/gubbins/env\"\n"
+        f"ALIGN_FASTA=\"{alignment_fasta}\"\n"
+        "OUT_PREFIX=\"cohort_gubbins\"\n"
+        "THREADS=16\n\n"
+        "source \"$(conda info --base)/etc/profile.d/conda.sh\"\n"
+        "conda activate \"${GUBBINS_ENV}\"\n"
+        "run_gubbins.py --threads \"${THREADS}\" --prefix \"${OUT_PREFIX}\" \"${ALIGN_FASTA}\"\n"
+    )
+    run_gubbins.chmod(0o755)
+
+    run_masked = out_dir / "run_masked_snp_dists.sh"
+    run_masked.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n\n"
+        "# Edit these placeholders before running\n"
+        "GUBBINS_ENV=\"/path/to/gubbins/env\"\n"
+        "GUBBINS_PREFIX=\"cohort_gubbins\"\n"
+        f"OUT_DIR=\"{out_dir}\"\n\n"
+        "source \"$(conda info --base)/etc/profile.d/conda.sh\"\n"
+        "conda activate \"${GUBBINS_ENV}\"\n"
+        "GUBBINS_FASTA=\"${GUBBINS_PREFIX}.filtered_polymorphic_sites.fasta\"\n"
+        "if [[ ! -f \"${GUBBINS_FASTA}\" ]]; then\n"
+        "  echo \"Missing ${GUBBINS_FASTA}. Run run_gubbins.sh first (and set matching prefix).\" >&2\n"
+        "  exit 1\n"
+        "fi\n"
+        "conda deactivate\n"
+        "snp-dists \"${GUBBINS_FASTA}\" > \"${OUT_DIR}/distances/cohort.masked_snp_distance_matrix.tsv\"\n"
+    )
+    run_masked.chmod(0o755)
+
+
 def run_call(args):
     from .clair3_module import run_clair3
     from .extract_fasta_and_gbk import extract_fasta_and_gbk
@@ -92,8 +129,6 @@ def run_call(args):
 def run_cohort(args):
     for exe in ["bcftools", "snp-dists"]:
         check_executable(exe)
-    if args.recombination == "gubbins":
-        check_executable("run_gubbins.py")
 
     out = Path(args.out)
     calls_dir = out / "calls"
@@ -146,6 +181,17 @@ def run_cohort(args):
 
     with open(dist / "cohort.unmasked_snp_distance_matrix.tsv", "w") as h:
         subprocess.run(["snp-dists", str(alignment)], check=True, stdout=h)
+
+    write_cohort_helper_scripts(out, alignment)
+
+    if args.recombination == "gubbins":
+        if shutil.which("run_gubbins.py") is None:
+            raise RuntimeError(
+                "--recombination gubbins requested, but run_gubbins.py is not on PATH. "
+                "Run cohort with --recombination none, then use run_gubbins.sh and "
+                "run_masked_snp_dists.sh in a Gubbins-enabled environment."
+            )
+        run_cmd(["run_gubbins.py", "--threads", str(args.threads), "--prefix", str(out / "cohort_gubbins"), str(alignment)])
 
 
 def build_parser():
