@@ -1,0 +1,11 @@
+dviont cohort \
+  --ref ref.fasta \
+  --reads-list examples/samples.tsv \
+  --out cohort_out \
+  --threads 16 \
+  --model-name r1041_e82_400bps_sup_v430_bacteria_finetuned \
+  --model-path /path/to/clair3/model \
+  --preset ont-q20 \
+  --vcf-mode clean \
+  --cohort-vcf-source clean \
+  --recombination none

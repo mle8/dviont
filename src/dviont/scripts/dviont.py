@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-
 import argparse
+import logging
 import os
 import shutil
-import logging
-import time
-import sys
+import subprocess
+from types import SimpleNamespace
+
+from Bio import SeqIO
+
+from .clair3_module import run_clair3
 from .directory_management import PipelineManager
-from .ref_format import determine_ref_format
 from .extract_fasta_and_gbk import extract_fasta_and_gbk
 from .minimap2 import run_minimap2_alignment
 from .winnowmap import run_winnowmap_alignment

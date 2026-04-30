@@ -2,9 +2,12 @@
 
 # DNA Variant Identification using ONT (dviONT) Pipeline
 
-## Overview
+dviONT is a bacterial ONT variant workflow where **Clair3 performs variant calling** and dviONT performs conservative VCF standardization, lightweight QC annotation, reporting, cohort SNP alignment generation, and SNP distance analysis.
 
-dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipeline designed specifically for Q20+ Oxford Nanopore Technologies sequencing data. This pipeline was heavily inspired by (1) Torsten Seemann's [short-read variant calling tool Snippy](https://github.com/tseemann/snippy) and (2) The best practices of ONT long-read variant calling as described in [this Michael Hall et al. eLife 2024 paper](https://doi.org/10.7554/eLife.98300). The pipeline facilitates the following:
+## VCF modes
+- `clair3_raw`: preserves Clair3 `merge_output.vcf.gz` as `sample.clair3.raw.vcf.gz`.
+- `clean` (default): standardizes and annotates variants as `sample.dviont.clean.vcf.gz` + `sample.dviont.report.tsv`.
+- `legacy_merge`: historical mode output `sample.dviont.legacy.vcf.gz` for benchmarking.
 
 1. Alignment of ONT sequencing reads that have been basecalled using dorado (tested with v.0.9.1) and the super accurate model (r1041_e82_400bps_sup_v500) to provided reference genome using Minimap2 (or Winnowmap).
 2. Variant calling using Clair3 parameters following best practices as described in aforementioned eLife journal article.
@@ -30,6 +33,7 @@ dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipe
 > I've only tested this with a Linux, RHEL 7.9 operating system. I am not sure how this will function in other OS environments. The easiest way to install is:
 >(1) Clone the GitHub repository and then (2) create a conda environment. 
 
+## Single-sample call
 ```bash
 git clone https://github.com/wshropshire/dviont
 cd dviont
@@ -53,6 +57,7 @@ conda env update --name dviont_env --file ./src/dviont/build/dviont_env.yaml
 ```bash
 ./dviont/bin/download_clair3_models [--output-dir] [model_name(s)] 
 ```
+Allows `#` comment lines and blank lines.
 
 By default if you execute the `download_clair3_models` script without arguments it will download `r1041_e82_400bps_sup_v430_bacteria_finetuned, r1041_e82_400bps_sup_v500, r1041_e82_400bps_sup_v420,r941_prom_sup_g5014` into the `models` sub-directory of `dviont`.
 
@@ -164,6 +169,8 @@ Feel free to contribute to the project by submitting issues or pull requests.
 
 ---
 
-## Version
+## Environments
+- `environment.yml`: dviONT + core tools (includes `snp-dists`).
+- `environment-gubbins.yml`: optional separate environment for Gubbins.
 
 dviONT v0.3.1
