@@ -116,7 +116,31 @@ dviont cohort \
   --recombination none
 ```
 
-Use `--recombination gubbins` to run Gubbins masking after SNP alignment generation.
+
+### Recommended HPC workflow (separate environments)
+
+1) Build cohort alignment and unmasked SNP distances in `dviont_env`:
+
+```bash
+conda activate dviont_env
+dviont cohort --ref ref.fasta --reads-list examples/samples.tsv --out cohort_out --recombination none
+```
+
+2) Run Gubbins in a separate environment:
+
+```bash
+conda activate gubbins
+bash cohort_out/run_gubbins.sh
+```
+
+3) Compute masked SNP distances:
+
+```bash
+conda activate dviont_env
+bash cohort_out/run_masked_snp_dists.sh
+```
+
+`dviont cohort` writes `run_gubbins.sh` and `run_masked_snp_dists.sh` so Gubbins can be run outside the DviONT/Clair3 environment.
 
 ## Outputs
 
@@ -135,18 +159,20 @@ Use `--recombination gubbins` to run Gubbins masking after SNP alignment generat
 - `cohort_vcfs/cohort_merged.snps.vcf.gz`
 - `alignments/cohort.snp_alignment.fasta`
 - `distances/cohort.unmasked_snp_distance_matrix.tsv`
-- `distances/cohort.masked_snp_distance_matrix.tsv` (when Gubbins is run)
+- `run_gubbins.sh`
+- `run_masked_snp_dists.sh`
+- `distances/cohort.masked_snp_distance_matrix.tsv` (after running helper scripts)
 
 ## Notes
 
 - Clean mode is conservative: it standardizes and annotates VCFs without aggressive default filtering.
 - Dense variant regions are flagged as `DENSE_REGION`; this is not a direct recombination call.
-- Recombination-aware masking is optional and only performed in cohort mode via Gubbins.
+- Recombination masking is an external follow-up step via Gubbins helper scripts.
 
 ## Citation / Authors
 
 DviONT was developed by **William Shropshire**.
 
-## Examples
-See `examples/` for call/cohort and LSF workflow templates.
-dviONT v0.3.1
+## License
+
+[MIT License](LICENSE.txt)

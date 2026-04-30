@@ -39,6 +39,32 @@ def run_cmd(cmd):
     subprocess.run(cmd, check=True)
 
 
+
+
+def write_gubbins_helper_scripts(out_dir, threads):
+    run_gubbins = out_dir / "run_gubbins.sh"
+    run_masked = out_dir / "run_masked_snp_dists.sh"
+    run_gubbins.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n\n"
+        'GUBBINS_ENV="/path/to/gubbins/env"\n'
+        f'ALIGN_FASTA="{out_dir}/alignments/cohort.snp_alignment.fasta"\n'
+        f'OUT_PREFIX="{out_dir}/gubbins/cohort"\n'
+        f'THREADS={threads}\n\n'
+        "source ~/.bashrc\n"
+        'conda activate "$GUBBINS_ENV"\n'
+        f'mkdir -p "{out_dir}/gubbins"\n'
+        'run_gubbins.py --prefix "$OUT_PREFIX" --threads "$THREADS" "$ALIGN_FASTA"\n'
+        "conda deactivate\n"
+    )
+    run_masked.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n\n"
+        f'snp-dists {out_dir}/gubbins/cohort.filtered_polymorphic_sites.fasta > {out_dir}/distances/cohort.masked_snp_distance_matrix.tsv\n'
+    )
+    os.chmod(run_gubbins, 0o755)
+    os.chmod(run_masked, 0o755)
+
 def run_call(args):
     from .clair3_module import run_clair3
     from .extract_fasta_and_gbk import extract_fasta_and_gbk
@@ -92,8 +118,6 @@ def run_call(args):
 def run_cohort(args):
     for exe in ["bcftools", "snp-dists"]:
         check_executable(exe)
-    if args.recombination == "gubbins":
-        check_executable("run_gubbins.py")
 
     out = Path(args.out)
     calls_dir = out / "calls"
@@ -146,6 +170,8 @@ def run_cohort(args):
 
     with open(dist / "cohort.unmasked_snp_distance_matrix.tsv", "w") as h:
         subprocess.run(["snp-dists", str(alignment)], check=True, stdout=h)
+
+    write_gubbins_helper_scripts(out, args.threads)
 
 
 def build_parser():
