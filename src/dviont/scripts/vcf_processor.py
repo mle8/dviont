@@ -3,7 +3,7 @@ import os
 import subprocess
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 import pysam
 from Bio import SeqIO
