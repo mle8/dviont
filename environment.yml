@@ -1,0 +1,15 @@
+name: dviont_env
+channels: [conda-forge, bioconda, defaults]
+dependencies:
+  - python>=3.9
+  - minimap2
+  - samtools
+  - bcftools
+  - htslib
+  - pysam
+  - biopython
+  - pandas
+  - snp-dists
+  - pip
+  - pip:
+      - dviont
