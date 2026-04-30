@@ -173,4 +173,6 @@ Feel free to contribute to the project by submitting issues or pull requests.
 - `environment.yml`: dviONT + core tools (includes `snp-dists`).
 - `environment-gubbins.yml`: optional separate environment for Gubbins.
 
+## Examples
+See `examples/` for call/cohort and LSF workflow templates.
 dviONT v0.3.1
