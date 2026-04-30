@@ -147,6 +147,6 @@ Use `--recombination gubbins` to run Gubbins masking after SNP alignment generat
 
 DviONT was developed by **William Shropshire**.
 
-## License
-
-[MIT License](LICENSE.txt)
+## Examples
+See `examples/` for call/cohort and LSF workflow templates.
+dviONT v0.3.1
