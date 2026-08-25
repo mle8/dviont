@@ -29,12 +29,10 @@ def run_minimap2_alignment(fasta_file, reads, threads, output_dir, sample, prese
     # Resolve minimap2 -x based on preset
     x_value = PRESET_TO_X.get(preset, "lr:hq")
     
-    extra = ["-O", "20,60"] if preset == "ont-legacy" else []
-
     logging.info(f"Preset requested: {preset}")
     logging.info(f"minimap2 -x will be set to: {x_value}")
 
-    minimap_cmd = ["minimap2", "-t", str(threads), "-ax", x_value] + extra + [fasta_file, reads]
+    minimap_cmd = ["minimap2", "-t", str(threads), "-ax", x_value, fasta_file, reads]
     samtools_sort_cmd = ["samtools", "sort", "-@", str(threads), "-o", bam_output]
 
     try:
