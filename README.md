@@ -6,7 +6,7 @@
 
 dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipeline designed specifically for Q20+ Oxford Nanopore Technologies sequencing data. This pipeline was heavily inspired by (1) Torsten Seemann's [short-read variant calling tool Snippy](https://github.com/tseemann/snippy) and (2) The best practices of ONT long-read variant calling as described in [this Michael Hall et al. eLife 2024 paper](https://doi.org/10.7554/eLife.98300). The pipeline facilitates the following:
 
-1. Alignment of ONT sequencing reads that have been basecalled using dorado (tested with v.0.9.1) and the super accurate model (r1041_e82_400bps_sup_v500) to a provided reference genome using Minimap2 (default) or Winnowmap.
+1. Alignment of ONT sequencing reads that have been basecalled using Dorado and the Clair3 r1041_e82_400bps_sup_v430_bacteria_finetuned model (default) to a provided reference genome using Minimap2 (default) or Winnowmap.
 2. Variant calling using Clair3 parameters following best practices as described in aforementioned eLife journal article.
 3. Optional annotation of variants with SnpEff (if a GenBank reference is provided).
 4. Post-processing of variant call files (VCF), which is intended to be used for further downstream analyses.
