@@ -44,9 +44,6 @@ conda activate dviont_env
 pip install build
 python -m build
 pip install ./dist/dviont-0.3.1.tar.gz
----
-
-## Usage
 
 > [!TIP]
 > Before use for the first time, you can execute the `download_clair3_models.py` to download Clair3 models that are appropriate for the respective Dorado basecalling model used for your ONT sequencing data:
