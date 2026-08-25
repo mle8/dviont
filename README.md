@@ -6,44 +6,44 @@
 
 dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipeline designed specifically for Q20+ Oxford Nanopore Technologies sequencing data. This pipeline was heavily inspired by (1) Torsten Seemann's [short-read variant calling tool Snippy](https://github.com/tseemann/snippy) and (2) The best practices of ONT long-read variant calling as described in [this Michael Hall et al. eLife 2024 paper](https://doi.org/10.7554/eLife.98300). The pipeline facilitates the following:
 
-1. Alignment of ONT sequencing reads that have been basecalled using Dorado and the Clair3 r1041_e82_400bps_sup_v430_bacteria_finetuned model (default) to a provided reference genome using Minimap2 (default) or Winnowmap.
-2. Variant calling using Clair3 parameters following best practices as described in aforementioned eLife journal article.
-3. Optional annotation of variants with SnpEff (if a GenBank reference is provided).
-4. Post-processing of variant call files (VCF), which is intended to be used for further downstream analyses.
-5. A readable tab separated variant calling report heavily inspired by Torsten Seemann and the output from the short-read variant calling tool, Snippy.
+1. Alignment of ONT sequencing reads to a provided reference genome using Minimap2 (default) or Winnowmap.
+2. Variant calling using Clair3 parameters following best practices described in the aforementioned eLife article.
+3. Optional annotation of variants with SnpEff when a GenBank reference is provided.
+4. Post-processing of variant call files (VCFs) for reporting and downstream analyses.
+5. A readable tab-separated variant calling report heavily inspired by Torsten Seemann's short-read variant calling tool Snippy.
+6. Cohort analysis of multiple ONT samples against a common reference, including generation of a combined SNP alignment and pairwise SNP distance matrix.
 
 ---
 
 ## Features
 
 - **Reference Support:** Handles both FASTA and GenBank formats.
-- **Variant Calling:** Leverages Clair3 which has been shown to have precision/recall for variant calling using Q20+ ONT reads comparable or even better than some short-read variant calling workflows.
-- **Annotation:** SnpEff integration for functional annotation of variants.
-- **Consensus Fasta File:** Generate consensus fasta file based off filtered Clair3 VCF file output, which can be used for genome assembly QC purposes.
-- **Core Genome Alignment:** Currently in production; can use the normalized vcf output to potentially create a core genome alignment that can be used to infer a phylogeny.
+- **Read Alignment:** Supports Minimap2 (default) and Winnowmap.
+- **Variant Calling:** Uses Clair3 for ONT variant calling.
+- **Annotation:** SnpEff integration for functional annotation of variants when a GenBank reference is supplied.
+- **Consensus FASTA:** Generates a consensus FASTA file based on Clair3 variant calls, which can be used for genome assembly QC purposes.
+- **Cohort SNP Alignment:** `dviont cohort` processes multiple samples against a shared reference and generates a combined SNP alignment.
+- **SNP Distance Matrix:** Cohort mode uses `snp-dists` to calculate pairwise SNP distances from the cohort SNP alignment.
 
 ---
 
 ## Installation
 
 > [!WARNING]
-> I've only tested this with a Linux, RHEL 7.9 operating system. I am not sure how this will function in other OS environments. The easiest way to install is:
->(1) Clone the GitHub repository and then (2) create a conda environment.
+> dviONT has primarily been tested in Linux/HPC environments. The easiest way to install is to clone the repository, create the supplied Conda environment, and install the dviONT package.
 
 ```bash
 git clone https://github.com/wshropshire/dviont
 cd dviont
-# Create a conda environment
-conda create -n dviont_env python=3.10
-conda activate dviont_env
-pip3 install build
-# Build a sparse dviont package
-python -m build
-pip3 install ./dist/dviont-0.3.1.tar.gz
-# Use yaml file to build environment with all dependencies - issues with pip/conda install 'path collisions' due to pre-installed python. All dependencies are properly downloaded and identified.
-conda env update --name dviont_env --file ./src/dviont/build/dviont_env.yaml
-```
 
+# Create the dviONT environment with all required dependencies
+conda env create -f ./src/dviont/build/dviont_env.yaml
+conda activate dviont_env
+
+# Build and install dviONT
+pip install build
+python -m build
+pip install ./dist/dviont-0.3.1.tar.gz
 ---
 
 ## Usage
