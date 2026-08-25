@@ -13,6 +13,8 @@ dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipe
 5. A readable tab-separated variant calling report heavily inspired by Torsten Seemann's short-read variant calling tool Snippy.
 6. Cohort analysis of multiple ONT samples against a common reference, including generation of a combined SNP alignment and pairwise SNP distance matrix.
 
+> dviONT has been developed and tested extensively using Escherichia coli datasets. Performance on other bacterial species has not been evaluated as extensively and should be validated by the user.
+
 ---
 
 ## Features
