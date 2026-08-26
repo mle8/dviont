@@ -65,7 +65,7 @@ def parse_reads_list(path):
 
 
 def run_call(args):
-    """Run Will Shropshire's original single-sample workflow."""
+    """Run the standard single-sample workflow."""
     from .clair3_module import run_clair3
     from .directory_management import PipelineManager
     from .extract_fasta_and_gbk import extract_fasta_and_gbk
@@ -101,15 +101,15 @@ def run_call(args):
     )
     if not result:
         raise RuntimeError("Clair3 calling failed")
-    vcf_out, _ = result
+    final_vcf, _ = result
 
     if ref_fmt == "genbank":
         vcf_file_to_process = run_snpEff(
-            args.output_dir, vcf_out, fasta_out, args.sample
+            args.output_dir, final_vcf, fasta_out, args.sample
         )
     else:
         logging.warning("Reference is FASTA; skipping SnpEff annotation.")
-        vcf_file_to_process = vcf_out
+        vcf_file_to_process = final_vcf
 
     processor = VCFProcessor(
         vcf_file=vcf_file_to_process,
@@ -121,7 +121,7 @@ def run_call(args):
     processor.parse_vcf()
     logging.info("DviONT completed for '%s' in %.2f seconds", args.sample, time.time() - start_time)
     logging.info("Logs available at: %s", log_file)
-    return os.path.join(args.output_dir, "clair3", "merge_output.vcf.gz"), fasta_out
+    return final_vcf, fasta_out
 
 
 def require_executable(name):
@@ -129,37 +129,54 @@ def require_executable(name):
         raise RuntimeError(f"Required executable not found on PATH: {name}")
 
 
-def write_snp_alignment(vcf, samples, output):
-    command = ["bcftools", "query", "-f", "%REF\t%ALT[\t%GT]\n", str(vcf)]
+def fasta_sequence_length(path):
+    """Return the total number of bases in a FASTA file."""
+    length = 0
+    records = 0
+    with open(path) as handle:
+        for line in handle:
+            if line.startswith(">"):
+                records += 1
+            else:
+                length += len(line.strip())
+    if records == 0:
+        raise ValueError(f"No FASTA records found in {path}")
+    return length
+
+
+def write_consensus(vcf, reference, sample, output):
+    """Write one full-reference-length consensus record for a cohort sample."""
+    command = [
+        "bcftools", "consensus", "-f", str(reference), "-s", sample, str(vcf)
+    ]
     result = subprocess.run(command, check=True, text=True, capture_output=True)
-    sequences = {sample: [] for sample in samples}
-    for line in result.stdout.splitlines():
-        fields = line.split("\t")
-        ref, alt, genotypes = fields[0], fields[1], fields[2:]
-        alleles = [ref, alt]
-        for sample, genotype in zip(samples, genotypes):
-            called = genotype.replace("|", "/").split("/")
-            allele = ref
-            if called and all(value == called[0] for value in called) and called[0] not in (".", "0"):
-                index = int(called[0])
-                if index < len(alleles):
-                    allele = alleles[index]
-            sequences[sample].append(allele)
+    sequence = "".join(
+        line.strip() for line in result.stdout.splitlines() if not line.startswith(">")
+    )
+    if not sequence:
+        raise ValueError(f"bcftools consensus produced no sequence for {sample}")
     with open(output, "w") as handle:
-        for sample in samples:
-            handle.write(f">{sample}\n{''.join(sequences[sample])}\n")
+        handle.write(f">{sample}\n")
+        for offset in range(0, len(sequence), 60):
+            handle.write(sequence[offset:offset + 60] + "\n")
+    return len(sequence)
 
 
 def run_cohort(args):
-    """Run ordinary DviONT calls and combine native Clair3 calls."""
+    """Run ordinary DviONT calls and combine their final processed VCFs."""
     require_executable("bcftools")
     require_executable("snp-dists")
     samples = parse_reads_list(args.reads_list)
     out = Path(args.out)
     calls_dir = out / "calls"
-    cohort_dir = out / "cohort"
+    alignments_dir = out / "alignments"
+    consensus_dir = alignments_dir / "consensus_snps"
+    cohort_vcfs_dir = out / "cohort_vcfs"
+    distances_dir = out / "distances"
     calls_dir.mkdir(parents=True, exist_ok=True)
-    cohort_dir.mkdir(parents=True, exist_ok=True)
+    consensus_dir.mkdir(parents=True, exist_ok=True)
+    cohort_vcfs_dir.mkdir(parents=True, exist_ok=True)
+    distances_dir.mkdir(parents=True, exist_ok=True)
 
     vcfs = []
     cohort_reference = None
@@ -168,23 +185,44 @@ def run_cohort(args):
         call_args.output_dir = str(calls_dir / sample)
         call_args.reads = reads
         call_args.sample = sample
-        vcf, cohort_reference = run_call(call_args)
-        if not os.path.isfile(vcf):
-            raise FileNotFoundError(f"Clair3 native merged VCF not found: {vcf}")
-        subprocess.run(["bcftools", "index", "-f", vcf], check=True)
-        vcfs.append(vcf)
+        final_vcf, sample_reference = run_call(call_args)
+        if not os.path.isfile(final_vcf):
+            raise FileNotFoundError(f"Final VCF not found: {final_vcf}")
+        subprocess.run(["bcftools", "index", "-f", final_vcf], check=True)
+        vcfs.append(final_vcf)
+        if cohort_reference is None:
+            cohort_reference = sample_reference
 
-    merged = cohort_dir / "cohort.merged.vcf.gz"
-    normalized = cohort_dir / "cohort.snps.vcf.gz"
+    merged = cohort_vcfs_dir / "cohort_merged.vcf.gz"
+    normalized = cohort_vcfs_dir / "cohort_merged.norm.vcf.gz"
     subprocess.run(["bcftools", "merge", "-m", "none", "-Oz", "-o", str(merged), *vcfs], check=True)
+    subprocess.run(["bcftools", "index", "-f", str(merged)], check=True)
     subprocess.run(["bcftools", "norm", "-f", cohort_reference, "-m", "-any", "-Oz", "-o", str(normalized), str(merged)], check=True)
-    filtered = cohort_dir / "cohort.biallelic_snps.vcf.gz"
+    subprocess.run(["bcftools", "index", "-f", str(normalized)], check=True)
+    filtered = cohort_vcfs_dir / "cohort_merged.snps.vcf.gz"
     subprocess.run(["bcftools", "view", "-m2", "-M2", "-v", "snps", "-Oz", "-o", str(filtered), str(normalized)], check=True)
+    subprocess.run(["bcftools", "index", "-f", str(filtered)], check=True)
 
     sample_names = [sample for sample, _ in samples]
-    alignment = cohort_dir / "cohort.snp_alignment.fasta"
-    write_snp_alignment(filtered, sample_names, alignment)
-    distances = cohort_dir / "cohort.snp_distance_matrix.tsv"
+    reference_length = fasta_sequence_length(cohort_reference)
+    consensus_fastas = []
+    for sample in sample_names:
+        consensus = consensus_dir / f"{sample}.fasta"
+        consensus_length = write_consensus(filtered, cohort_reference, sample, consensus)
+        if consensus_length != reference_length:
+            raise ValueError(
+                f"Consensus length for {sample} is {consensus_length}; "
+                f"expected reference length {reference_length}"
+            )
+        consensus_fastas.append(consensus)
+
+    alignment = alignments_dir / "cohort.snp_alignment.fasta"
+    with open(alignment, "wb") as destination:
+        for consensus in consensus_fastas:
+            with open(consensus, "rb") as source:
+                shutil.copyfileobj(source, destination)
+
+    distances = distances_dir / "cohort.snp_distance_matrix.tsv"
     with open(distances, "w") as handle:
         subprocess.run(["snp-dists", str(alignment)], check=True, stdout=handle)
 

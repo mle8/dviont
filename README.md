@@ -55,7 +55,7 @@ pip install ./dist/dviont-0.3.1.tar.gz
 > [!TIP]
 > Before use for the first time, you can execute the `download_clair3_models.py` to download Clair3 models that are appropriate for the respective Dorado basecalling model used for your ONT sequencing data:
 ```bash
-./dviont/bin/download_clair3_models [--output-dir] [model_name(s)]
+./dviont/bin/download_clair3_models [--output_dir] [model_name(s)]
 ```
 
 By default if you execute the `download_clair3_models` script without arguments it will download `r1041_e82_400bps_sup_v430_bacteria_finetuned, r1041_e82_400bps_sup_v500, r1041_e82_400bps_sup_v420,r941_prom_sup_g5014` into the `models` sub-directory of `dviont`.
@@ -77,15 +77,15 @@ dviont call \
 
 ### Required Arguments
 
-- `-o`, `--output_dir`: Path to the directory where results will be saved.
+- `-o`, `--output-dir`: Path to the directory where results will be saved.
 - `-r`, `--ref`: Reference genome file (FASTA or GenBank).
 - `-i`, `--reads`: ONT Q20+ reads(FASTQ).
 
 ### Optional Arguments
 
 - `-t`, `--threads`: Number of threads to use (default: 2).
-- `-m`, `--model_name`: Clair3 model name (default: `r1041_e82_400bps_sup_v430_bacteria_finetuned`).
-- `-p`, `--model_path`: Path to the Clair3 model (optional).
+- `-m`, `--model-name`: Clair3 model name (default: `r1041_e82_400bps_sup_v430_bacteria_finetuned`).
+- `-p`, `--model-path`: Path to the Clair3 model (optional).
 - `-s`, `--sample`: Prefix for output (default: `SAMPLE`).
 - `--preset`: Minimap2 alignment preset (default: ont-q20).
     - `ont-legacy`: map-ont (ONT R9.x Guppy HAC)
@@ -117,7 +117,7 @@ dviont call \
 
 ## Cohort mode
 
-`dviont cohort` runs the ordinary dviONT workflow for multiple ONT read sets against one reference, preserves each sample's outputs, and uses the native Clair3 calls to generate a combined SNP alignment and pairwise SNP distance matrix.
+`dviont cohort` runs the ordinary dviONT workflow for multiple ONT read sets against one reference and preserves each sample's outputs. Cohort aggregation uses the final VCF returned by each completed call. It then uses `bcftools consensus` to build a full reference-length pseudoalignment before calculating the pairwise SNP distance matrix.
 
 Provide a tab-separated samples file with one sample and reads path per line:
 
@@ -140,18 +140,44 @@ dviont cohort \
     --aligner minimap2
 ```
 
-Per-sample results are written under `cohort_out/calls/`. The main cohort outputs are `cohort_out/cohort/cohort.snp_alignment.fasta` and `cohort_out/cohort/cohort.snp_distance_matrix.tsv`.
+The cohort output is organized as follows:
+
+```text
+cohort_out/
+├── calls/                         # Standard per-sample dviONT output directories
+│   ├── SAMPLE1/
+│   └── SAMPLE2/
+├── alignments/
+│   ├── consensus_snps/            # Full reference-length sample consensuses
+│   │   ├── SAMPLE1.fasta
+│   │   └── SAMPLE2.fasta
+│   └── cohort.snp_alignment.fasta
+├── cohort_vcfs/
+│   ├── cohort_merged.vcf.gz
+│   ├── cohort_merged.vcf.gz.csi
+│   ├── cohort_merged.norm.vcf.gz
+│   ├── cohort_merged.norm.vcf.gz.csi
+│   ├── cohort_merged.snps.vcf.gz
+│   └── cohort_merged.snps.vcf.gz.csi
+└── distances/
+    └── cohort.snp_distance_matrix.tsv
+```
+
+All consensus sequences are checked against the processed cohort reference length. The final SNP alignment retains reference bases at nonvariant positions and genomic spacing between variants.
 
 ---
 
 ## Outputs
 
-- **Aligned Sorted Reads:** `<output_dir>/<sample_name>_aligned_reads.bam`
-- **Filtered Variants:** `<output_dir>/<sample_name>_output.filt.vcf`
-- **Consensus Fasta File** `<output_dir>/<sample_name>_consenus.fasta`
-- **Normalized Variants (For core genome alignment):**`<output_dir>/<sample_name>_output.filt.norm.vcf.gz`
-- **Filtered Annotated Variants (if GenBank):** `<output_dir>/<sample_name>_annotated.vcf`
-- **dviONT Variant Calling Report:** `<output_dir>/<sample_name>_dviont_report.tsv`
+- **Aligned Sorted Reads:** `<output_dir>/<sample>_aln_sort.bam`
+- **Merged Variants:** `<output_dir>/<sample>_merged.vcf.gz`
+- **Normalized Variants:** `<output_dir>/<sample>_merged.norm.vcf.gz`
+- **Final Filtered Variants:** `<output_dir>/<sample>_filtered.sorted.vcf.gz`
+- **Consensus FASTA:** `<output_dir>/<sample>_consensus.fasta`
+- **Annotated Variants (GenBank references only):** `<output_dir>/<sample>_annotated.vcf`
+- **dviONT Variant Calling Report:** `<output_dir>/<sample>_dviont_report.tsv`
+
+The final DviONT VCF used for downstream analysis is `<output_dir>/<sample>_filtered.sorted.vcf.gz`.
 
 ---
 

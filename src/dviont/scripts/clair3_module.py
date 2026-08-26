@@ -3,7 +3,7 @@ import logging
 import subprocess
 import shutil
 import pysam
-from .merge_vcfs import merge_vcfs  # Import merge function
+from .merge_vcfs import merge_vcfs
 
 class Clair3Pipeline:
     def __init__(self, output_dir, ref, bam_output, sample, threads=2, model_name="r1041_e82_400bps_sup_v430_bacteria_finetuned", model_path=None):
@@ -15,18 +15,16 @@ class Clair3Pipeline:
         self.threads = threads
         self.model_name = model_name
 
-        # Locate dviont package root directory
-        package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Moves up one level
+        package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        # Correct Model Path
         self.model_path = model_path or os.path.join(package_root, "models", model_name)
 
         self.clair3_output_dir = os.path.join(self.output_dir, "clair3")
 
     def run_pipeline(self):
         """Runs Clair3, merges VCFs, normalizes, and applies multiallelic filtering."""
-        logging.info(f"🔹 Running Clair3 pipeline for sample: {self.sample}")
-        logging.info(f"🔹 Using Clair3 Model Path: {self.model_path}")
+        logging.info(f"Running Clair3 pipeline for sample: {self.sample}")
+        logging.info(f"Using Clair3 Model Path: {self.model_path}")
 
         try:
             os.makedirs(self.clair3_output_dir, exist_ok=True)
@@ -44,8 +42,6 @@ class Clair3Pipeline:
                 "--include_all_ctgs",
                 "--haploid_precise",
                 "--no_phasing_for_fa",
-#                "--snp_min_af=0.02", # Testing minimum AF at lower proportion (incraese SNP sensitivity)
-                
                 "--enable_long_indel"
             ]
 
@@ -62,11 +58,11 @@ class Clair3Pipeline:
 
             # Ensure both VCFs exist before merging
             if not os.path.exists(pileup_vcf) or not os.path.exists(full_vcf):
-                logging.error("❌ Clair3 did not produce expected VCFs.")
+                logging.error("Clair3 did not produce expected VCFs.")
                 return None
 
             # Merge the VCFs
-            logging.info("🔹 Merging pileup and full-alignment VCFs...")
+            logging.info("Merging pileup and full-alignment VCFs...")
             merge_vcfs(pileup_vcf, full_vcf, merged_vcf)
 
             # Normalize the merged VCF
@@ -74,14 +70,14 @@ class Clair3Pipeline:
             norm_cmd = [
                 "bcftools", "norm", "-a", "-m-both", "-f", self.ref, merged_vcf, "-O", "z", "-o", norm_vcf
             ]
-            logging.info(f"🔹 Running bcftools norm: {' '.join(norm_cmd)}")
+            logging.info(f"Running bcftools norm: {' '.join(norm_cmd)}")
             subprocess.run(norm_cmd, check=True)
 
             # Apply filtering for multiallelic sites and sort the VCF
             final_sorted_vcf = os.path.join(self.output_dir, f"{self.sample}_filtered.sorted.vcf.gz")
             self.filter_multiallelic_sites(norm_vcf, final_sorted_vcf)
 
-            logging.info(f"✅ Clair3 pipeline complete. Final sorted VCF: {final_sorted_vcf}")
+            logging.info(f"Clair3 pipeline complete. Final sorted VCF: {final_sorted_vcf}")
 
             # Generate consensus FASTA
             consensus_path = os.path.join(self.output_dir, f"{self.sample}_consensus.fasta")
@@ -90,10 +86,10 @@ class Clair3Pipeline:
             return final_sorted_vcf, consensus_path
 
         except subprocess.CalledProcessError as e:
-            logging.error(f"❌ Clair3 execution failed: {e}")
+            logging.error(f"Clair3 execution failed: {e}")
             return None
         except Exception as e:
-            logging.error(f"❌ Unexpected error: {e}", exc_info=True)
+            logging.error(f"Unexpected error: {e}", exc_info=True)
             return None
 
     def cleanup_tmp_folder(self):
@@ -107,7 +103,7 @@ class Clair3Pipeline:
         Filters multiallelic sites to **keep only the variant with the highest allele frequency (AF)**
         and ensures the final VCF file is sorted.
         """
-        logging.info(f"🔹 Filtering multiallelic sites in: {input_vcf}")
+        logging.info(f"Filtering multiallelic sites in: {input_vcf}")
 
         # Parse VCF and store variants by (CHROM, POS)
         variants = {}
@@ -154,7 +150,7 @@ class Clair3Pipeline:
             subprocess.run(sort_cmd, check=True)
             shutil.move(temp_sorted_vcf, output_vcf) 
         except subprocess.CalledProcessError as e:
-            logging.error(f"❌ Sorting VCF failed: {e}")
+            logging.error(f"Sorting VCF failed: {e}")
 
         return output_vcf
 
@@ -170,7 +166,7 @@ class Clair3Pipeline:
         with open(consensus_output_path, "w") as out_fasta:
             subprocess.run(["bcftools", "consensus", "-f", self.ref, vcf_path], stdout=out_fasta, check=True)
 
-        logging.info(f"✅ Consensus FASTA written to: {consensus_output_path}")
+        logging.info(f"Consensus FASTA written to: {consensus_output_path}")
 
 def run_clair3(output_dir, ref, bam_output, threads, model_name, sample, model_path=None):
     """

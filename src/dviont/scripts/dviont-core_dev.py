@@ -17,13 +17,11 @@ def get_arguments():
     parser.add_argument("-t", "--threads", type=int, default=2, help="Number of threads")
     parser.add_argument("-s", "--sample", default="SAMPLE", help="Sample name")
     parser.add_argument("--mincovfrac", type=float, default=0.2, help="Minimum coverage fraction threshold (default: 0.2)")
-#    parser.add_argument("--snpfrac", type=float, default=0.9, help="Minimum allele frequency for SNP filtering (default: 0.9)")
     parser.add_argument("--auto_mask", action="store_true", help="Automatically identify repeat regions using NUCmer and merge with coverage-based masking")
     return parser.parse_args()
 
-def extract_snps_and_dels(vcf, output_vcf): # remove snpfrac
+def extract_snps_and_dels(vcf, output_vcf):
     """Extract SNPs and deletions from the VCF file."""
- #   command = f"bcftools view -i 'TYPE=\"snp\" || (strlen(REF) > strlen(ALT))' {vcf} | bcftools filter -i 'AF>={snpfrac}' -Oz -o {output_vcf}"
     command = f"bcftools view -i 'TYPE=\"snp\" || (strlen(REF) > strlen(ALT))' {vcf} | bcftools view -e 'GT=\"1/0\"' -Oz -o {output_vcf}"
     run_command(command)
     run_command(f"bcftools index {output_vcf}")
@@ -139,12 +137,11 @@ def main():
     
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # Initialize logging using PipelineManager
     manager = PipelineManager(args.output_dir, args.sample)
     manager.setup_logging()
     
     snps_and_dels_vcf = os.path.join(args.output_dir, f"{args.sample}_snps_and_dels.vcf.gz")
-    extract_snps_and_dels(args.vcf, snps_and_dels_vcf) # args.snpfrac removed
+    extract_snps_and_dels(args.vcf, snps_and_dels_vcf)
     
     avg_depth = calculate_average_depth(args.bam)
     bed_file = os.path.join(args.output_dir, f"{args.sample}_lowcov_mask.bed")

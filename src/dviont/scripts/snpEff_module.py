@@ -50,13 +50,12 @@ def run_snpEff(output_dir, vcf_out, ref, sample=""):
         snpeff_build_cmd = [
             "snpEff", "build", "-c", snpeff_config_work, "-dataDir", reference_dir, "-genbank", snpeff_db
         ]
-        logging.info(f"🔹 Running snpEff build: {' '.join(snpeff_build_cmd)}")
+        logging.info(f"Running snpEff build: {' '.join(snpeff_build_cmd)}")
         subprocess.run(snpeff_build_cmd, check=True)
 
         # Define snpEff annotated VCF output file
         snpeff_annotated_vcf = os.path.join(output_dir, f"{sample}_annotated.vcf")
 
-        # Run snpEff annotation with correct options
         snpeff_cmd = [
             "snpEff", "ann", "-noLog", "-noStats",
             "-no-downstream", "-no-upstream", "-no-utr",
@@ -64,16 +63,16 @@ def run_snpEff(output_dir, vcf_out, ref, sample=""):
             snpeff_db, vcf_out
         ]
 
-        logging.info(f"🔹 Running snpEff annotation: {' '.join(snpeff_cmd)}")
+        logging.info(f"Running snpEff annotation: {' '.join(snpeff_cmd)}")
         with open(snpeff_annotated_vcf, "w") as output_file:
             subprocess.run(snpeff_cmd, stdout=output_file, check=True)
 
-        logging.info(f"✅ SnpEff annotation completed: {snpeff_annotated_vcf}")
+        logging.info(f"SnpEff annotation completed: {snpeff_annotated_vcf}")
         return snpeff_annotated_vcf
 
     except subprocess.CalledProcessError as e:
-        logging.error(f"❌ Error running snpEff: {e}")
+        logging.error(f"Error running snpEff: {e}")
         return None
     except Exception as e:
-        logging.error(f"❌ Unexpected error: {e}")
+        logging.error(f"Unexpected error: {e}")
         return None
