@@ -117,7 +117,7 @@ dviont call \
 
 ## Cohort mode
 
-`dviont cohort` runs the ordinary dviONT workflow for multiple ONT read sets against one reference, preserves each sample's outputs, and uses the native Clair3 calls to generate a combined SNP alignment and pairwise SNP distance matrix.
+`dviont cohort` runs the ordinary dviONT workflow for multiple ONT read sets against one reference and preserves each sample's outputs. Cohort aggregation uses the final VCF returned by each completed call. It then uses `bcftools consensus` to build a full reference-length pseudoalignment before calculating the pairwise SNP distance matrix.
 
 Provide a tab-separated samples file with one sample and reads path per line:
 
@@ -140,7 +140,30 @@ dviont cohort \
     --aligner minimap2
 ```
 
-Per-sample results are written under `cohort_out/calls/`. The main cohort outputs are `cohort_out/cohort/cohort.snp_alignment.fasta` and `cohort_out/cohort/cohort.snp_distance_matrix.tsv`.
+The cohort output is organized as follows:
+
+```text
+cohort_out/
+├── calls/                         # Standard per-sample dviONT output directories
+│   ├── SAMPLE1/
+│   └── SAMPLE2/
+├── alignments/
+│   ├── consensus_snps/            # Full reference-length sample consensuses
+│   │   ├── SAMPLE1.fasta
+│   │   └── SAMPLE2.fasta
+│   └── cohort.snp_alignment.fasta
+├── cohort_vcfs/
+│   ├── cohort_merged.vcf.gz
+│   ├── cohort_merged.vcf.gz.csi
+│   ├── cohort_merged.norm.vcf.gz
+│   ├── cohort_merged.norm.vcf.gz.csi
+│   ├── cohort_merged.snps.vcf.gz
+│   └── cohort_merged.snps.vcf.gz.csi
+└── distances/
+    └── cohort.snp_distance_matrix.tsv
+```
+
+All consensus sequences are checked against the processed cohort reference length. The final SNP alignment retains reference bases at nonvariant positions and genomic spacing between variants.
 
 ---
 
