@@ -170,10 +170,11 @@ All consensus sequences are checked against the processed cohort reference lengt
 ## Outputs
 
 - **Aligned Sorted Reads:** `<output_dir>/<sample_name>_aligned_reads.bam`
-- **Filtered Variants:** `<output_dir>/<sample_name>_output.filt.vcf`
-- **Consensus Fasta File** `<output_dir>/<sample_name>_consenus.fasta`
-- **Normalized Variants (For core genome alignment):**`<output_dir>/<sample_name>_output.filt.norm.vcf.gz`
-- **Filtered Annotated Variants (if GenBank):** `<output_dir>/<sample_name>_annotated.vcf`
+- **Merged Variants:** `<output_dir>/<sample_name>_merged.vcf.gz`
+- **Normalized Variants:** `<output_dir>/<sample_name>_merged.norm.vcf.gz`
+- **Final Filtered/Sorted Variants:** `<output_dir>/<sample_name>_filtered.sorted.vcf.gz`
+- **Consensus FASTA:** `<output_dir>/<sample_name>_consensus.fasta`
+- **Annotated Variants (GenBank references only):** `<output_dir>/<sample_name>_annotated.vcf`
 - **dviONT Variant Calling Report:** `<output_dir>/<sample_name>_dviont_report.tsv`
 
 ---
