@@ -185,29 +185,27 @@ The final DviONT VCF used for reporting and downstream analysis is the native `m
 
 ## Columns in the dviONT Report
 
-Name | Description
------|------------
-CHROM | The header of the sequence the variant was detected
-POS | Position in the sequence (1-based)
-TYPE | The variant type: snp mnp indel
-REF | The nucleotide(s) in the reference
-ALT | The alternate nucleotide(s) supported by the reads
-EVIDENCE | Fraction of support for ALT and REF respectively
+| Name | Description |
+| --- | --- |
+| CHROM | Reference sequence or contig containing the variant |
+| POS | Variant position (1-based) |
+| TYPE | Variant type: SNP, MNP, or INDEL |
+| REF | Reference allele |
+| ALT | Alternate allele |
+| EVIDENCE | Read-depth evidence for the alternate and reference alleles derived from the VCF DP and AD fields |
 
-If you supply a Genbank file as the `--ref` rather than a FASTA
-file, dviONT provides further annotation.
+If a GenBank file is supplied with `--ref`, dviONT also reports functional annotation from SnpEff:
 
-Name | Description
------|------------
-ANNOT | Mutation type (i.e., intergenic vs. coding mutation)
-IMPACT | snpEff predicted impact of mutation
-GENE | The `/gene` tag of the feature (if it existed)
-LOCUS_TAG | The `/locus_tag` of the feature (if it existed)
-HGVS.c | Nucleotide mutation following HGVS nomenclature
-HGVS.p | Protein mutation following HGVS nomenclautre
-PRODUCT | The `/product` tag of the feature (if it existed)
-EFFECT | The `snpEff` annotated consequence of this variant (ANN tag in .vcf)
-
+| Name | Description |
+| --- | --- |
+| ANNOT | Predicted variant annotation |
+| IMPACT | SnpEff predicted impact |
+| GENE | Gene name, when available |
+| LOCUS_TAG | GenBank locus tag |
+| HGVS.c | Coding DNA-level HGVS annotation |
+| HGVS.p | Protein-level HGVS annotation |
+| PRODUCT_ID | Protein identifier from the GenBank annotation, when available |
+| PRODUCT | Product description from the GenBank annotation, when available |
 ---
 
 ## License
