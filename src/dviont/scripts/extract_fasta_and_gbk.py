@@ -21,6 +21,7 @@ def _sanitize_fasta_in_place(fasta_path: str) -> None:
         for raw in fin:
             line = raw.rstrip("\n").rstrip("\r")
 
+            # Skip empty/whitespace-only lines (key fix)
             if not line.strip():
                 continue
 
@@ -79,10 +80,11 @@ def extract_fasta_and_gbk(reference, ref_dir, ref_fmt, output_dir):
             logging.error(f"Unknown ref_fmt: {ref_fmt}. Expected 'genbank' or 'fasta'.")
             return None
 
+        # sanitize ref.fa in place (removes blank lines between records, etc.)
         try:
             _sanitize_fasta_in_place(fasta_out)
         except Exception as e:
-            logging.error(f"Error sanitizing FASTA {fasta_out}: {e}")
+            logging.error(f"❌ Error sanitizing FASTA {fasta_out}: {e}")
             return None
 
         # Ensure `fasta_out` is symlinked to `genomes/`
