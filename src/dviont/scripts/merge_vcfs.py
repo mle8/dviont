@@ -22,10 +22,10 @@ def parse_vcf(vcf_file):
 
 def merge_vcfs(pileup_vcf, full_vcf, output_vcf):
     """ Merges two Clair3 VCFs (pileup and full-alignment) based on defined rules. """
-    logging.info(f"🔹 Parsing pileup VCF: {pileup_vcf}")
+    logging.info(f"Parsing pileup VCF: {pileup_vcf}")
     pileup_variants = parse_vcf(pileup_vcf)
 
-    logging.info(f"🔹 Parsing full-alignment VCF: {full_vcf}")
+    logging.info(f"Parsing full-alignment VCF: {full_vcf}")
     full_variants = parse_vcf(full_vcf)
 
     merged_variants = {}
@@ -60,5 +60,5 @@ def merge_vcfs(pileup_vcf, full_vcf, output_vcf):
         for variant in merged_variants.values():
             output.write(variant)
 
-    logging.info(f"✅ Merged VCF saved to: {output_vcf}")
+    logging.info(f"Merged VCF saved to: {output_vcf}")
     return output_vcf

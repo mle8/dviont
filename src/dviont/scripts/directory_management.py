@@ -24,6 +24,7 @@ class PipelineManager:
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s",  # Use the default timestamp format provided by logging
             filemode="w",  # Overwrite any existing log file
+            force=True,
         )
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)

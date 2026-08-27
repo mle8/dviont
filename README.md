@@ -6,42 +6,47 @@
 
 dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipeline designed specifically for Q20+ Oxford Nanopore Technologies sequencing data. This pipeline was heavily inspired by (1) Torsten Seemann's [short-read variant calling tool Snippy](https://github.com/tseemann/snippy) and (2) The best practices of ONT long-read variant calling as described in [this Michael Hall et al. eLife 2024 paper](https://doi.org/10.7554/eLife.98300). The pipeline facilitates the following:
 
-1. Alignment of ONT sequencing reads that have been basecalled using dorado (tested with v.0.9.1) and the super accurate model (r1041_e82_400bps_sup_v500) to provided reference genome using Minimap2.
-2. Variant calling using Clair3 parameters following best practices as described in aforementioned eLife journal article.
-3. Optional annotation of variants with SnpEff (if a GenBank reference is provided).
-4. Post-processing of variant call files (VCF), which is intended to be used for further downstream analyses.
-5. A readable tab separated variant calling report heavily inspired by Torsten Seemann and the output from the short-read variant calling tool, Snippy.
+1. Alignment of ONT sequencing reads to a provided reference genome using Minimap2 (default) or Winnowmap.
+2. Variant calling using Clair3 parameters following best practices described in the aforementioned eLife article.
+3. Optional annotation of variants with SnpEff when a GenBank reference is provided.
+4. Post-processing of variant call files (VCFs) for reporting and downstream analyses.
+5. A readable tab-separated variant calling report heavily inspired by Torsten Seemann's short-read variant calling tool Snippy.
+6. Cohort analysis of multiple ONT samples against a common reference, including generation of a combined SNP alignment and pairwise SNP distance matrix.
+
+**dviONT has been developed and tested extensively using *Escherichia coli* datasets. Performance on other bacterial species has not been evaluated as extensively and should be validated by the user.**
 
 ---
 
 ## Features
 
 - **Reference Support:** Handles both FASTA and GenBank formats.
-- **Variant Calling:** Leverages Clair3 which has been shown to have precision/recall for variant calling using Q20+ ONT reads comparable or even better than some short-read variant calling workflows.
-- **Annotation:** SnpEff integration for functional annotation of variants.
-- **Consensus Fasta File:** Generate consensus fasta file based off filtered Clair3 VCF file output, which can be used for genome assembly QC purposes.
-- **Core Genome Alignment:** Currently in production; can use the normalized vcf output to potentially create a core genome alignment that can be used to infer a phylogeny.
+- **Read Alignment:** Supports Minimap2 (default) and Winnowmap.
+- **Variant Calling:** Uses Clair3 for ONT variant calling.
+- **Final Variant Callset:** The default `r1041_e82_400bps_sup_v430_bacteria_finetuned` model uses Clair3's native `clair3/merge_output.vcf.gz`. Other supported models retain DviONT's pileup/full-alignment merge and filtering workflow.
+- **Annotation:** SnpEff integration for functional annotation of variants when a GenBank reference is supplied.
+- **Consensus FASTA:** Generates a consensus FASTA file based on Clair3 variant calls, which can be used for genome assembly QC purposes.
+- **Cohort SNP Alignment:** `dviont cohort` processes multiple samples against a shared reference and generates a combined SNP alignment.
+- **SNP Distance Matrix:** Cohort mode uses `snp-dists` to calculate pairwise SNP distances from the cohort SNP alignment.
 
 ---
 
 ## Installation
 
 > [!WARNING]
-> I've only tested this with a Linux, RHEL 7.9 operating system. I am not sure how this will function in other OS environments. The easiest way to install is:
->(1) Clone the GitHub repository and then (2) create a conda environment. 
+> dviONT has primarily been tested in Linux/HPC environments. The easiest way to install is to clone the repository, create the supplied Conda environment, and install the dviONT package.
 
 ```bash
 git clone https://github.com/wshropshire/dviont
 cd dviont
-# Create a conda environment
-conda create -n dviont_env python=3.10
+
+# Create the dviONT environment with all required dependencies
+conda env create -f ./src/dviont/build/dviont_env.yaml
 conda activate dviont_env
-pip3 install build
-# Build a sparse dviont package
+
+# Build and install dviONT
+pip install build
 python -m build
-pip3 install ./dist/dviont-0.3.1.tar.gz
-# Use yaml file to build environment with all dependencies - issues with pip/conda install 'path collisions' due to pre-installed python. All dependencies are properly downloaded and identified.
-conda env update --name dviont_env --file ./src/dviont/build/dviont_env.yaml
+pip install ./dist/dviont-0.3.1.tar.gz
 ```
 
 ---
@@ -51,15 +56,15 @@ conda env update --name dviont_env --file ./src/dviont/build/dviont_env.yaml
 > [!TIP]
 > Before use for the first time, you can execute the `download_clair3_models.py` to download Clair3 models that are appropriate for the respective Dorado basecalling model used for your ONT sequencing data:
 ```bash
-./dviont/bin/download_clair3_models [--output-dir] [model_name(s)] 
+./dviont/bin/download_clair3_models [--output_dir] [model_name(s)]
 ```
 
 By default if you execute the `download_clair3_models` script without arguments it will download `r1041_e82_400bps_sup_v430_bacteria_finetuned, r1041_e82_400bps_sup_v500, r1041_e82_400bps_sup_v420,r941_prom_sup_g5014` into the `models` sub-directory of `dviont`.
 
-The pipeline can be executed using the following command:
+The `call` command runs the standard dviONT single-isolate workflow:
 
 ```bash
-dviont \
+dviont call \
     -o <output_directory> \
     -r <reference_genome> \
     -i <reads_file> \
@@ -67,20 +72,21 @@ dviont \
     -m <clair3_model_name> \
     -p <clair3_model_path> \
     -s <sample_name> \
-    --preset <alignment_preset>
+    --preset <alignment_preset> \
+    --aligner <minimap2_or_winnowmap>
 ```
 
 ### Required Arguments
 
-- `-o`, `--output_dir`: Path to the directory where results will be saved.
+- `-o`, `--output-dir`: Path to the directory where results will be saved.
 - `-r`, `--ref`: Reference genome file (FASTA or GenBank).
 - `-i`, `--reads`: ONT Q20+ reads(FASTQ).
 
 ### Optional Arguments
 
 - `-t`, `--threads`: Number of threads to use (default: 2).
-- `-m`, `--model_name`: Clair3 model name (default: `r1041_e82_400bps_sup_v430_bacteria_finetuned`).
-- `-p`, `--model_path`: Path to the Clair3 model (optional).
+- `-m`, `--model-name`: Clair3 model name (default: `r1041_e82_400bps_sup_v430_bacteria_finetuned`).
+- `-p`, `--model-path`: Path to the Clair3 model (optional).
 - `-s`, `--sample`: Prefix for output (default: `SAMPLE`).
 - `--preset`: Minimap2 alignment preset (default: ont-q20).
     - `ont-legacy`: map-ont (ONT R9.x Guppy HAC)
@@ -88,6 +94,7 @@ dviont \
     - `pb-clr`: map-pb (PacBio CLR)
     - `pb-hifi`: map-hifi (PacBio HiFi/CCS)
     - `asm`: asm5 (assembly-to-assembly alignment)
+- `--aligner`: Read aligner: `minimap2` (default) or `winnowmap`. Winnowmap uses a weighted repeat k-mer list generated by meryl.
 - `-v`, `--version`: Display the version of the dviONT pipeline.
 
 ---
@@ -97,7 +104,7 @@ dviont \
 Note that I have included example fasta/GenBank reference files as well as ONT Q20+ reads in the `data` directory
 
 ```bash
-dviont \
+dviont call \
     -o ./data/dviont_results \
     -r ./data/test.gb \
     -i ./data/reads.fastq.gz \
@@ -109,42 +116,96 @@ dviont \
 
 ---
 
+## Cohort mode
+
+`dviont cohort` runs the ordinary dviONT workflow for multiple ONT read sets against one reference and preserves each sample's outputs. Cohort aggregation uses the final VCF returned by each completed call. It then uses `bcftools consensus` to build a full reference-length pseudoalignment before calculating the pairwise SNP distance matrix.
+
+Provide a tab-separated samples file with one sample and reads path per line:
+
+```text
+SAMPLE1<TAB>/path/to/SAMPLE1.fastq.gz
+SAMPLE2<TAB>/path/to/SAMPLE2.fastq.gz
+```
+
+Run cohort mode with:
+
+```bash
+dviont cohort \
+    --ref ref.fasta \
+    --reads-list samples.tsv \
+    --out cohort_out \
+    --threads 16 \
+    --model-name r1041_e82_400bps_sup_v430_bacteria_finetuned \
+    --model-path /path/to/clair3/models \
+    --preset ont-q20 \
+    --aligner minimap2
+```
+
+The cohort output is organized as follows:
+
+```text
+cohort_out/
+├── calls/                         # Standard per-sample dviONT output directories
+│   ├── SAMPLE1/
+│   └── SAMPLE2/
+├── alignments/
+│   ├── consensus_snps/            # Full reference-length sample consensuses
+│   │   ├── SAMPLE1.fasta
+│   │   └── SAMPLE2.fasta
+│   └── cohort.snp_alignment.fasta
+├── cohort_vcfs/
+│   ├── cohort_merged.vcf.gz
+│   ├── cohort_merged.vcf.gz.csi
+│   ├── cohort_merged.norm.vcf.gz
+│   ├── cohort_merged.norm.vcf.gz.csi
+│   ├── cohort_merged.snps.vcf.gz
+│   └── cohort_merged.snps.vcf.gz.csi
+└── distances/
+    └── cohort.snp_distance_matrix.tsv
+```
+
+All consensus sequences are checked against the processed cohort reference length. The final SNP alignment retains reference bases at nonvariant positions and genomic spacing between variants.
+
+---
+
 ## Outputs
 
-- **Aligned Sorted Reads:** `<output_dir>/<sample_name>_aligned_reads.bam`
-- **Filtered Variants:** `<output_dir>/<sample_name>_output.filt.vcf`
-- **Consensus Fasta File** `<output_dir>/<sample_name>_consenus.fasta`
-- **Normalized Variants (For core genome alignment):**`<output_dir>/<sample_name>_output.filt.norm.vcf.gz`
-- **Filtered Annotated Variants (if GenBank):** `<output_dir>/<sample_name>_annotated.vcf`
-- **dviONT Variant Calling Report:** `<output_dir>/<sample_name>_dviont_report.tsv`
+- **Aligned Sorted Reads:** `<output_dir>/<sample>_aln_sort.bam`
+- **Merged Variants (other models):** `<output_dir>/<sample>_merged.vcf.gz`
+- **Normalized Variants (other models):** `<output_dir>/<sample>_merged.norm.vcf.gz`
+- **Final Variants (default bacteria-finetuned v430 model):** `<output_dir>/clair3/merge_output.vcf.gz`
+- **Final Filtered Variants (other models):** `<output_dir>/<sample>_filtered.sorted.vcf.gz`
+- **Consensus FASTA:** `<output_dir>/<sample>_consensus.fasta`
+- **Annotated Variants (GenBank references only):** `<output_dir>/<sample>_annotated.vcf`
+- **dviONT Variant Calling Report:** `<output_dir>/<sample>_dviont_report.tsv`
+
+The final DviONT VCF used for reporting and downstream analysis is the native `merge_output.vcf.gz` for the default bacteria-finetuned v430 model and `<sample>_filtered.sorted.vcf.gz` for other supported models. Cohort mode uses the same final callset returned by the corresponding single-sample workflow.
 
 ---
 
 ## Columns in the dviONT Report
 
-Name | Description
------|------------
-CHROM | The header of the sequence the variant was detected
-POS | Position in the sequence (1-based)
-TYPE | The variant type: snp mnp indel
-REF | The nucleotide(s) in the reference
-ALT | The alternate nucleotide(s) supported by the reads
-EVIDENCE | Fraction of support for ALT and REF respectively
+| Name | Description |
+| --- | --- |
+| CHROM | Reference sequence or contig containing the variant |
+| POS | Variant position (1-based) |
+| TYPE | Variant type: SNP, MNP, or INDEL |
+| REF | Reference allele |
+| ALT | Alternate allele |
+| EVIDENCE | Read-depth evidence for the alternate and reference alleles derived from the VCF DP and AD fields |
 
-If you supply a Genbank file as the `--ref` rather than a FASTA
-file, dviONT provides further annotation.
+If a GenBank file is supplied with `--ref`, dviONT also reports functional annotation from SnpEff:
 
-Name | Description
------|------------
-ANNOT | Mutation type (i.e., intergenic vs. coding mutation)
-IMPACT | snpEff predicted impact of mutation
-GENE | The `/gene` tag of the feature (if it existed)
-LOCUS_TAG | The `/locus_tag` of the feature (if it existed)
-HGVS.c | Nucleotide mutation following HGVS nomenclature
-HGVS.p | Protein mutation following HGVS nomenclautre 
-PRODUCT | The `/product` tag of the feature (if it existed)
-EFFECT | The `snpEff` annotated consequence of this variant (ANN tag in .vcf)
-
+| Name | Description |
+| --- | --- |
+| ANNOT | Predicted variant annotation |
+| IMPACT | SnpEff predicted impact |
+| GENE | Gene name, when available |
+| LOCUS_TAG | GenBank locus tag |
+| HGVS.c | Coding DNA-level HGVS annotation |
+| HGVS.p | Protein-level HGVS annotation |
+| PRODUCT_ID | Protein identifier from the GenBank annotation, when available |
+| PRODUCT | Product description from the GenBank annotation, when available |
 ---
 
 ## License

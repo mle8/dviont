@@ -29,17 +29,15 @@ def run_minimap2_alignment(fasta_file, reads, threads, output_dir, sample, prese
     # Resolve minimap2 -x based on preset
     x_value = PRESET_TO_X.get(preset, "lr:hq")
     
-    extra = ["-O", "20,60"] if preset == "ont-legacy" else []
-
     logging.info(f"Preset requested: {preset}")
     logging.info(f"minimap2 -x will be set to: {x_value}")
 
-    minimap_cmd = ["minimap2", "-t", str(threads), "-ax", x_value] + extra + [fasta_file, reads]
+    minimap_cmd = ["minimap2", "-t", str(threads), "-ax", x_value, fasta_file, reads]
     samtools_sort_cmd = ["samtools", "sort", "-@", str(threads), "-o", bam_output]
 
     try:
         # Print the Minimap2 command in a single print statement
-        logging.info(f"🔹 Running minimap2 with command:{' '.join(minimap_cmd)}")
+        logging.info(f"Running minimap2 with command:{' '.join(minimap_cmd)}")
 
 
         # Run minimap2 and capture both stdout and stderr
@@ -53,28 +51,28 @@ def run_minimap2_alignment(fasta_file, reads, threads, output_dir, sample, prese
             minimap_proc.stdout.close()  # Allow sort_proc to get EOF
 
             # Print the Samtools sort command
-            logging.info(f"🔹 Running samtools sort with command:{' '.join(samtools_sort_cmd)}")
+            logging.info(f"Running samtools sort with command:{' '.join(samtools_sort_cmd)}")
 
             # Wait for minimap2 and samtools to complete
             minimap_return = minimap_proc.wait()
             sort_stderr = sort_proc.communicate()[1]  # Capture Samtools stderr
 
             if minimap_return != 0:
-                logging.error(f"❌ Minimap2 failed with error code {minimap_return}. Check logs above.")
+                logging.error(f"Minimap2 failed with error code {minimap_return}. Check logs above.")
                 return None
             
             if sort_proc.returncode != 0:
-                logging.error(f"❌ Samtools sorting failed: {sort_stderr}")
+                logging.error(f"Samtools sorting failed: {sort_stderr}")
                 return None
 
         # Index the sorted BAM file
         subprocess.run(["samtools", "index", bam_output], check=True)
-        logging.info(f"✅ Minimap2 alignment and Samtools sort complete: {bam_output}")
+        logging.info(f"Minimap2 alignment and Samtools sort complete: {bam_output}")
         return bam_output
 
     except subprocess.CalledProcessError as e:
-        logging.error(f"❌ Error running Minimap2 or Samtools: {e.stderr}")
+        logging.error(f"Error running Minimap2 or Samtools: {e.stderr}")
         return None
     except Exception as e:
-        logging.error(f"❌ Unexpected error: {e}")
+        logging.error(f"Unexpected error: {e}")
         return None

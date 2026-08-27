@@ -107,12 +107,12 @@ def extract_fasta_and_gbk(reference, ref_dir, ref_fmt, output_dir):
         try:
             subprocess.run(["samtools", "faidx", fasta_out], capture_output=True, text=True, check=True)
         except subprocess.CalledProcessError as e:
-            logging.error(f"❌ Error running samtools faidx: {e.stderr}")
+            logging.error(f"Error running samtools faidx: {e.stderr}")
             return None
 
         return fasta_out
 
     except Exception as e:
-        logging.error(f"❌ Error in extract_fasta_and_gbk: {e}")
+        logging.error(f"Error in extract_fasta_and_gbk: {e}")
         return None
 
