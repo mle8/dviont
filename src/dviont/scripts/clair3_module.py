@@ -51,6 +51,23 @@ class Clair3Pipeline:
             # Remove 'tmp' directory from Clair3 output
             self.cleanup_tmp_folder()
 
+            if self.model_name == "r1041_e82_400bps_sup_v430_bacteria_finetuned":
+                final_vcf = os.path.join(self.clair3_output_dir, "merge_output.vcf.gz")
+                if not os.path.exists(final_vcf):
+                    logging.error("Clair3 did not produce merge_output.vcf.gz.")
+                    return None
+
+                subprocess.run(["bcftools", "index", "-f", final_vcf], check=True)
+                consensus_path = os.path.join(self.output_dir, f"{self.sample}_consensus.fasta")
+                with open(consensus_path, "w") as out_fasta:
+                    subprocess.run(
+                        ["bcftools", "consensus", "-f", self.ref, final_vcf],
+                        stdout=out_fasta,
+                        check=True,
+                    )
+                logging.info(f"Consensus FASTA written to: {consensus_path}")
+                return final_vcf, consensus_path
+
             # Define VCF file paths
             pileup_vcf = os.path.join(self.clair3_output_dir, "pileup.vcf.gz")
             full_vcf = os.path.join(self.clair3_output_dir, "full_alignment.vcf.gz")

@@ -22,6 +22,7 @@ dviONT (DNA Variant Identification using ONT) is a bacteria variant calling pipe
 - **Reference Support:** Handles both FASTA and GenBank formats.
 - **Read Alignment:** Supports Minimap2 (default) and Winnowmap.
 - **Variant Calling:** Uses Clair3 for ONT variant calling.
+- **Final Variant Callset:** The default `r1041_e82_400bps_sup_v430_bacteria_finetuned` model uses Clair3's native `clair3/merge_output.vcf.gz`. Other supported models retain DviONT's pileup/full-alignment merge and filtering workflow.
 - **Annotation:** SnpEff integration for functional annotation of variants when a GenBank reference is supplied.
 - **Consensus FASTA:** Generates a consensus FASTA file based on Clair3 variant calls, which can be used for genome assembly QC purposes.
 - **Cohort SNP Alignment:** `dviont cohort` processes multiple samples against a shared reference and generates a combined SNP alignment.
@@ -170,14 +171,15 @@ All consensus sequences are checked against the processed cohort reference lengt
 ## Outputs
 
 - **Aligned Sorted Reads:** `<output_dir>/<sample>_aln_sort.bam`
-- **Merged Variants:** `<output_dir>/<sample>_merged.vcf.gz`
-- **Normalized Variants:** `<output_dir>/<sample>_merged.norm.vcf.gz`
-- **Final Filtered Variants:** `<output_dir>/<sample>_filtered.sorted.vcf.gz`
+- **Merged Variants (other models):** `<output_dir>/<sample>_merged.vcf.gz`
+- **Normalized Variants (other models):** `<output_dir>/<sample>_merged.norm.vcf.gz`
+- **Final Variants (default bacteria-finetuned v430 model):** `<output_dir>/clair3/merge_output.vcf.gz`
+- **Final Filtered Variants (other models):** `<output_dir>/<sample>_filtered.sorted.vcf.gz`
 - **Consensus FASTA:** `<output_dir>/<sample>_consensus.fasta`
 - **Annotated Variants (GenBank references only):** `<output_dir>/<sample>_annotated.vcf`
 - **dviONT Variant Calling Report:** `<output_dir>/<sample>_dviont_report.tsv`
 
-The final DviONT VCF used for downstream analysis is `<output_dir>/<sample>_filtered.sorted.vcf.gz`.
+The final DviONT VCF used for reporting and downstream analysis is the native `merge_output.vcf.gz` for the default bacteria-finetuned v430 model and `<sample>_filtered.sorted.vcf.gz` for other supported models. Cohort mode uses the same final callset returned by the corresponding single-sample workflow.
 
 ---
 
