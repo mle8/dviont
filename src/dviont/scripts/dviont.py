@@ -145,9 +145,12 @@ def fasta_sequence_length(path):
 
 
 def write_consensus(vcf, reference, sample, output):
-    """Write one full-reference-length consensus record for a cohort sample."""
+    """Write a cohort consensus, masking missing genotypes at cohort SNP sites as N.
+
+    Positions absent from the SNP-only VCF retain their reference bases.
+    """
     command = [
-        "bcftools", "consensus", "-f", str(reference), "-s", sample, str(vcf)
+        "bcftools", "consensus", "-f", str(reference), "-s", sample, "-M", "N", str(vcf)
     ]
     result = subprocess.run(command, check=True, text=True, capture_output=True)
     sequence = "".join(
